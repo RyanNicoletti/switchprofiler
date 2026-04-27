@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <random>
+#include <sstream>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -41,22 +43,6 @@ void handleSignal(int sig) {
   raise(sig);
 }
 
-std::string generateWords() {
-  std::random_device rd;
-  std::mt19937 rng(rd());
-  std::uniform_int_distribution<int> dist(0, wordList.size() - 1);
-  std::string words;
-  for (int i = 0; i < 80; i++) {
-    int idx = dist(rng);
-    std::string_view word = wordList[idx];
-    if (i > 0) {
-      words += ' ';
-    }
-    words += word;
-  }
-  return words;
-}
-
 int getTermWidth() {
   struct winsize ws;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
@@ -64,11 +50,42 @@ int getTermWidth() {
   return width;
 }
 
-void render(const std::string &words, int maxWidth) {
-  // clear the screen and move cursor to position (1, 1)
+std::string generateLine(std::mt19937 &rng, int terminalWidth) {
+  std::uniform_int_distribution<int> dist(0, wordList.size() - 1);
+  std::string line;
+  int lineLength = 0;
+  while (lineLength < terminalWidth) {
+    std::string_view word = wordList[dist(rng)];
+    int newLength = lineLength + word.size();
+    if (newLength >= static_cast<int>(terminalWidth)) {
+      break;
+    }
+    if (lineLength > 0) {
+      line += " ";
+      newLength += 1;
+    }
+    line += word;
+    lineLength = newLength;
+  }
+  return line;
+}
+
+void initialRender(std::vector<std::string> &lines) {
   printf("\033[2J\033[H");
-  // use sstream to iterate through the string and keep track of currwidth, make
-  // sure it doesnt exceed maxWidth
+  printf("\033[90m");
+  for (const std::string &line : lines) {
+    printf("%s", line.c_str());
+    printf("\r\n");
+  }
+  printf("\033[H");
+  fflush(stdout);
+}
+
+void fillLines(std::vector<std::string> &lines, std::mt19937 &rng,
+               int terminalWidth) {
+  lines.push_back(generateLine(rng, terminalWidth));
+  lines.push_back(generateLine(rng, terminalWidth));
+  lines.push_back(generateLine(rng, terminalWidth));
 }
 
 int main() {
@@ -77,13 +94,17 @@ int main() {
   std::signal(SIGINT, handleSignal);
   std::signal(SIGTERM, handleSignal);
   RawTerminal term;
-
-  std::string randomWords = generateWords();
-  int termWidth = getTermWidth();
-  render(randomWords, termWidth);
+  std::vector<std::string> lines;
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  int width = getTermWidth();
+  fillLines(lines, rng, width);
+  initialRender(lines);
+  int cursorLine = 0;
+  int cursorCol = 0;
+  std::vector<std::string> usrInput;
   char c;
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 27) {
-    printf("%d\r\n", c);
   }
   return 0;
 }
