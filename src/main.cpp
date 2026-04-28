@@ -100,11 +100,23 @@ int main() {
   int width = getTermWidth();
   fillLines(lines, rng, width);
   initialRender(lines);
-  int cursorLine = 0;
+  // 1 based indexing for terminal col and row
+  int cursorRow = 0;
   int cursorCol = 0;
   std::vector<std::string> usrInput;
   char c;
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 27) {
+    char currChar = lines[cursorRow][cursorCol];
+    if (c == currChar) {
+      printf("\033[%i;%iH\033[32m%c", cursorRow + 1, cursorCol + 1, c);
+      cursorCol += 1;
+      if (cursorCol > width) {
+        // resize
+      }
+      printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
+      fflush(stdout);
+      continue;
+    }
   }
   return 0;
 }
