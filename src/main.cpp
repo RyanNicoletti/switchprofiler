@@ -121,9 +121,6 @@ int main() {
       continue;
     } else {
       printf("\033[%i;%iH\033[31m%c", cursorRow + 1, cursorCol + 1, currChar);
-      if (cursorCol == 0) {
-        continue;
-      }
       cursorCol += 1;
       printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
       fflush(stdout);
