@@ -106,13 +106,25 @@ int main() {
   std::vector<std::string> usrInput;
   char c;
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 27) {
+    if (c == 127) {
+      // handle backspace
+    }
     char currChar = lines[cursorRow][cursorCol];
     if (c == currChar) {
-      printf("\033[%i;%iH\033[32m%c", cursorRow + 1, cursorCol + 1, c);
+      printf("\033[%i;%iH\033[32m%c", cursorRow + 1, cursorCol + 1, currChar);
       cursorCol += 1;
       if (cursorCol > width) {
         // resize
       }
+      printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
+      fflush(stdout);
+      continue;
+    } else {
+      printf("\033[%i;%iH\033[31m%c", cursorRow + 1, cursorCol + 1, currChar);
+      if (cursorCol == 0) {
+        continue;
+      }
+      cursorCol += 1;
       printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
       fflush(stdout);
       continue;
