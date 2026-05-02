@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <csignal>
 #include <cstdio>
+#include <iterator>
 #include <random>
 #include <sstream>
 #include <sys/ioctl.h>
@@ -70,14 +71,37 @@ std::string generateLine(std::mt19937 &rng, int terminalWidth) {
   return line;
 }
 
-void initialRender(std::vector<std::string> &lines) {
+void render(std::vector<std::string> &lines, std::size_t topLineIdx) {
   printf("\033[2J\033[H");
   printf("\033[90m");
-  for (const std::string &line : lines) {
-    printf("%s", line.c_str());
+  for (size_t i = topLineIdx; i < lines.size(); i++) {
+    printf("%s", lines[i].c_str());
     printf("\r\n");
   }
   printf("\033[H");
+  fflush(stdout);
+}
+
+void rerender(std::vector<std::string> &lines,
+              const std::vector<std::string> &usrInput, size_t topLineIdx) {
+  printf("\033[2J\033[H");
+  printf("\033[90m");
+  std::string topLine = lines[topLineIdx];
+  for (size_t i = 0; i < topLine.size() && i < usrInput[topLineIdx].size();
+       i++) {
+    if (topLine[i] == usrInput[topLineIdx][i]) {
+      printf("\033[%i;%zuH\033[32m%c", 1, i + 1, lines[topLineIdx][i]);
+    } else {
+      printf("\033[%i;%zuH\033[31m%c", 1, i + 1, lines[topLineIdx][i]);
+    }
+  }
+  printf("\r\n");
+  for (size_t i = topLineIdx + 1; i < lines.size(); i++) {
+    printf("\033[0m");
+    printf("%s", lines[i].c_str());
+    printf("\r\n");
+  }
+  printf("\033[%i;%iH", 2, 0);
   fflush(stdout);
 }
 
@@ -99,11 +123,11 @@ int main() {
   std::mt19937 rng(rd());
   int width = getTermWidth();
   fillLines(lines, rng, width);
-  initialRender(lines);
-  int cursorRow = 0;
+  size_t topLineIdx = 0;
+  render(lines, topLineIdx);
+  size_t cursorRow = 0;
   int cursorCol = 0;
-  int topLineIdx = 0; // keep track of the index of the lines vec thats on top
-  std::vector<std::string> usrInput;
+  std::vector<std::string> usrInput(1);
   char c;
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 27) {
     char currChar = lines[cursorRow][cursorCol];
@@ -112,31 +136,42 @@ int main() {
         continue;
       }
       // handle condition where back space happens at beginning of new line
-      printf("\033[%i;%iH\033[90m%c", cursorRow + 1, cursorCol + 1, currChar);
-      printf("\033[%i;%iH\033[90m%c", cursorRow + 1, cursorCol,
+      printf("\033[%zu;%iH\033[90m%c", cursorRow - topLineIdx + 1,
+             cursorCol + 1, currChar);
+      printf("\033[%zu;%iH\033[90m%c", cursorRow - topLineIdx + 1, cursorCol,
              lines[cursorRow][cursorCol - 1]);
-      printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol);
+      printf("\033[%zu;%iH\033[4m", cursorRow - topLineIdx + 1, cursorCol);
       fflush(stdout);
       cursorCol -= 1;
       continue;
     }
+
     if (c == currChar) {
-      printf("\033[%i;%iH\033[32m%c", cursorRow + 1, cursorCol + 1, currChar);
-      cursorCol += 1;
-      if (cursorCol > static_cast<int>(lines[cursorRow].size())) {
-        cursorCol = 0;
-        cursorRow += 1;
-      }
-      printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
+      printf("\033[%zu;%iH\033[32m%c", cursorRow - topLineIdx + 1,
+             cursorCol + 1, currChar);
       fflush(stdout);
-      continue;
     } else {
-      printf("\033[%i;%iH\033[31m%c", cursorRow + 1, cursorCol + 1, currChar);
-      cursorCol += 1;
-      printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
+      printf("\033[%zu;%iH\033[31m%c", cursorRow - topLineIdx + 1,
+             cursorCol + 1, currChar);
       fflush(stdout);
-      continue;
     }
+    usrInput[cursorRow] += c;
+
+    cursorCol += 1;
+    if (cursorCol > static_cast<int>(lines[cursorRow].size())) {
+      cursorCol = 0;
+      cursorRow += 1;
+      usrInput.emplace_back();
+      if (cursorRow > topLineIdx + 1) {
+        topLineIdx += 1;
+        currChar = lines[cursorRow][cursorCol];
+        lines.push_back(generateLine(rng, width));
+        rerender(lines, usrInput, topLineIdx);
+        continue;
+      }
+    }
+    printf("\033[%zu;%iH\033[4m", cursorRow - topLineIdx + 1, cursorCol + 1);
+    fflush(stdout);
   }
   return 0;
 }
