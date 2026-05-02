@@ -100,21 +100,32 @@ int main() {
   int width = getTermWidth();
   fillLines(lines, rng, width);
   initialRender(lines);
-  // 1 based indexing for terminal col and row
   int cursorRow = 0;
   int cursorCol = 0;
+  int topLineIdx = 0; // keep track of the index of the lines vec thats on top
   std::vector<std::string> usrInput;
   char c;
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 27) {
-    if (c == 127) {
-      // handle backspace
-    }
     char currChar = lines[cursorRow][cursorCol];
+    if (c == 127) {
+      if (cursorCol == 0 && cursorRow == 0) {
+        continue;
+      }
+      // handle condition where back space happens at beginning of new line
+      printf("\033[%i;%iH\033[90m%c", cursorRow + 1, cursorCol + 1, currChar);
+      printf("\033[%i;%iH\033[90m%c", cursorRow + 1, cursorCol,
+             lines[cursorRow][cursorCol - 1]);
+      printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol);
+      fflush(stdout);
+      cursorCol -= 1;
+      continue;
+    }
     if (c == currChar) {
       printf("\033[%i;%iH\033[32m%c", cursorRow + 1, cursorCol + 1, currChar);
       cursorCol += 1;
-      if (cursorCol > width) {
-        // resize
+      if (cursorCol > static_cast<int>(lines[cursorRow].size())) {
+        cursorCol = 0;
+        cursorRow += 1;
       }
       printf("\033[%i;%iH\033[4m", cursorRow + 1, cursorCol + 1);
       fflush(stdout);
