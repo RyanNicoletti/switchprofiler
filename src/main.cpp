@@ -96,12 +96,11 @@ void rerender(std::vector<std::string> &lines,
     }
   }
   printf("\r\n");
+  printf("\033[90m");
   for (size_t i = topLineIdx + 1; i < lines.size(); i++) {
-    printf("\033[0m");
-    printf("%s", lines[i].c_str());
-    printf("\r\n");
+    printf("\033[%zu;1H%s", i - topLineIdx + 1, lines[i].c_str());
   }
-  printf("\033[%i;%iH", 2, 0);
+  printf("\033[%i;%iH", 2, 1);
   fflush(stdout);
 }
 
