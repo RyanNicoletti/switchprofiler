@@ -131,16 +131,16 @@ int main() {
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 27) {
     char currChar = lines[cursorRow][cursorCol];
     if (c == 127) {
-      if (cursorCol == 0 && cursorRow == 0) {
+      if (cursorCol == 0) {
         continue;
       }
-      // handle condition where back space happens at beginning of new line
       printf("\033[%zu;%iH\033[90m%c", cursorRow - topLineIdx + 1,
              cursorCol + 1, currChar);
       printf("\033[%zu;%iH\033[90m%c", cursorRow - topLineIdx + 1, cursorCol,
              lines[cursorRow][cursorCol - 1]);
       printf("\033[%zu;%iH\033[4m", cursorRow - topLineIdx + 1, cursorCol);
       fflush(stdout);
+      usrInput[cursorRow].pop_back();
       cursorCol -= 1;
       continue;
     }
